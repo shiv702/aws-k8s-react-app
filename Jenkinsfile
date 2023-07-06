@@ -43,37 +43,35 @@ pipeline {
                 sh "docker build . -f infra/Dockerfile -t clequinio/aws-k8s-react-app:${env.BUILD_TAG}"
             }
         }
-        stage("Push Docker Image") {
-            steps {
-                withDockerRegistry([url: "", credentialsId: "docker-credentials"]) {
-                    sh "docker push clequinio/aws-k8s-react-app:${env.BUILD_TAG}"
-                }
-            }
-        }
-        stage("Create k8s aws cluster") {
-            steps{
-                sh "./infra/exist-aws-k8s-cluster.sh || ./infra/create-aws-k8s-cluster.sh || exit 0"
-            }
+        stage ("docker push") {
+         steps {
+             script {
+                sh "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 860597918607.dkr.ecr.us-east-1.amazonaws.com"
+                sh "docker tag react_eks:latest 860597918607.dkr.ecr.us-east-1.amazonaws.com/react_eks:latest"
+                sh "docker push 860597918607.dkr.ecr.us-east-1.amazonaws.com/react_eks:latest"
+                 
+             }
+           }   
         }
         stage("Map kubectl to the k8s aws cluster and configure") {
             steps{
-                withAWS(credentials: "aws-credentials", region: "eu-west-3") {
-                    sh "aws eks --region eu-west-3 update-kubeconfig --name aws-k8s-react-app"
-                    sh "kubectl config use-context arn:aws:eks:eu-west-3:507569708173:cluster/aws-k8s-react-app"
+                withAWS(credentials: "aws_creds", region: "us-east-1") {
+                    sh "aws eks --region us-east-1 update-kubeconfig --name react_eks_cluster"
+                    sh "kubectl config use-context arn:aws:eks:us-east-1:860597918607:cluster/react_eks_cluster"
                     sh "kubectl apply -f infra/k8s-config.yml"
                 }
             }
         }
         stage("Deploy the new app dockerized") {
             steps{
-                withAWS(credentials: "aws-credentials", region: "eu-west-3") {
+                withAWS(credentials: "aws_creds", region: "us-east-1") {
                     sh "kubectl set image deployment/aws-k8s-react-app-deployment aws-k8s-react-app=clequinio/aws-k8s-react-app:${env.BUILD_TAG}"
                 }
             }
         }
         stage("Test deployment") {
             steps{
-                withAWS(credentials: "aws-credentials", region: "eu-west-3") {
+                withAWS(credentials: "aws_creds", region: "us-east-1") {
                     sh "kubectl get nodes"
                     sh "kubectl get deployment"
                     sh "kubectl get pod -o wide"
@@ -82,14 +80,7 @@ pipeline {
                 }
             }
         }
-        stage("Remove all unused containers, networks, images") {
-            steps{
-                sh "docker system prune -f"
-            }
-        }
     }
-}
-
 
 
 
