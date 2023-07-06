@@ -35,7 +35,7 @@ pipeline {
         }
         stage("Lint") {
             steps {
-                sh "hadolint infra/Dockerfile"
+                sh "hadolint Dockerfile"
             }
         }
         stage("Dockerize app") {
