@@ -40,8 +40,7 @@ pipeline {
         }
         stage("Dockerize app") {
             steps {
-                sh "cd infra"
-                sh "docker build registry"
+                sh "docker build -f infra/Dockerfile -t clequinio/aws-k8s-react-app:${env.BUILD_TAG} ."
             }
         }
         stage("docker push") {
